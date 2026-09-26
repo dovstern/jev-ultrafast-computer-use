@@ -52,7 +52,7 @@ cd jev-ultrafast-computer-use
 uv sync --locked
 ```
 
-Set `TYPESAFE_API_KEY` in your shell environment. Keep it out of the repository. The launcher also reads it from interactive zsh when a desktop agent did not inherit the variable. For Jev's `TYPE_TEXT` operation, either let the supervisor answer `needs_text`, or configure the optional text model variables shown in [.env.example](.env.example).
+Set `TYPESAFE_API_KEY` in your shell environment. Keep it out of the repository. When a desktop agent does not inherit it, the launcher can read a literal `export TYPESAFE_API_KEY="..."` assignment from `~/.zshrc` without running shell startup commands. For Jev's `TYPE_TEXT` operation, either let the supervisor answer `needs_text`, or configure the optional text model variables shown in [.env.example](.env.example).
 
 Enable Chrome Remote Debugging in `chrome://inspect/#remote-debugging`, then check the connection:
 
