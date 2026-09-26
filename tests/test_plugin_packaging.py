@@ -1,6 +1,7 @@
 """Both agent hosts discover one shared browser workflow and local MCP server."""
 
 import json
+import re
 import tomllib
 from pathlib import Path
 
@@ -27,7 +28,21 @@ def test_claude_and_codex_plugin_configs_share_one_skill_and_server():
 
 
 def test_distribution_uses_project_name_and_shared_mcp_entrypoint():
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+    config = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    project = config["project"]
 
     assert project["name"] == "jev-ultrafast-computer-use"
-    assert project["scripts"]["jev-computer-use-mcp"] == "jev_ultrafast.mcp_server:main"
+    assert project["scripts"]["jev-computer-use-mcp"] == "jev_ultrafast_computer_use.mcp_server:main"
+    assert "jev-ultrafast" in project["dependencies"]
+    source = config["tool"]["uv"]["sources"]["jev-ultrafast"]
+    assert source == {"git": "https://github.com/browser-use/jev-ultrafast.git", "branch": "main"}
+    locked = next(
+        package
+        for package in tomllib.loads((ROOT / "uv.lock").read_text())["package"]
+        if package["name"] == "jev-ultrafast"
+    )
+    assert re.fullmatch(
+        r"https://github\.com/browser-use/jev-ultrafast\.git\?branch=main#[0-9a-f]{40}", locked["source"]["git"]
+    )
+    assert (ROOT / "jev_ultrafast_computer_use/handoff.py").is_file()
+    assert not (ROOT / "jev_ultrafast/agent.py").exists()

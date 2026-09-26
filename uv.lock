@@ -368,18 +368,27 @@ wheels = [
 ]
 
 [[package]]
-name = "jev-ultrafast-computer-use"
+name = "jev-ultrafast"
 version = "0.1.0"
-source = { editable = "." }
+source = { git = "https://github.com/browser-use/jev-ultrafast.git?branch=main#1231850a0bf1a0c0341fe408ef1668dbbfdfac46" }
 dependencies = [
     { name = "browser-harness" },
     { name = "httpx", extra = ["http2"] },
+]
+
+[[package]]
+name = "jev-ultrafast-computer-use"
+version = "0.2.0"
+source = { editable = "." }
+dependencies = [
+    { name = "browser-harness" },
+    { name = "jev-ultrafast" },
     { name = "mcp" },
+    { name = "pydantic" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "pillow" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -387,13 +396,13 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "browser-harness", specifier = "==0.1.13" },
-    { name = "httpx", extras = ["http2"], specifier = ">=0.28,<1" },
+    { name = "jev-ultrafast", git = "https://github.com/browser-use/jev-ultrafast.git?branch=main" },
     { name = "mcp", specifier = ">=2,<3" },
+    { name = "pydantic", specifier = ">=2,<3" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "pillow", specifier = ">=11,<13" },
     { name = "pytest", specifier = ">=8.4,<9" },
     { name = "ruff", specifier = ">=0.14,<1" },
 ]

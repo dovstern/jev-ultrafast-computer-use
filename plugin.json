@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "jev-ultrafast-computer-use",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Let a supervising agent delegate public Chrome browsing to Jev and take over its tab when needed.",
   "author": { "name": "Dov Stern" },
   "repository": "https://github.com/dovstern/jev-ultrafast-computer-use",

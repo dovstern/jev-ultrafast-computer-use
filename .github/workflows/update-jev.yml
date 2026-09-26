@@ -1,0 +1,63 @@
+name: Check upstream Jev
+
+on:
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+jobs:
+  test-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          python-version: "3.12"
+      - run: uv lock --upgrade-package jev-ultrafast
+      - name: Check for a new upstream commit
+        id: diff
+        run: |
+          if git diff --quiet -- uv.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.diff.outputs.changed == 'true'
+        run: uv run --locked pytest -q
+      - if: steps.diff.outputs.changed == 'true'
+        run: uv run --locked ruff check --select F,E9,E402 --ignore F841 .
+      - if: steps.diff.outputs.changed == 'true'
+        run: uv build
+      - if: steps.diff.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: updated-jev-lock
+          path: uv.lock
+
+  propose:
+    needs: test-update
+    if: needs.test-update.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: updated-jev-lock
+      - uses: peter-evans/create-pull-request@v8
+        with:
+          add-paths: uv.lock
+          branch: codex/update-jev-ultrafast
+          commit-message: "chore: update upstream Jev commit"
+          title: "chore: update upstream Jev commit"
+          body: |
+            Update the locked browser-use/jev-ultrafast commit from upstream main.
+            The bridge tests, bug-finding lint, and package build passed on this commit.
+            Owner approval is required before merging.
+          delete-branch: true

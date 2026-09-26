@@ -1,17 +1,18 @@
 """Codex can call the browse lifecycle over MCP."""
 
 import asyncio
+from unittest.mock import Mock
 
 from mcp import Client
 
-from jev_ultrafast.handoff import BrowseSessions
-from jev_ultrafast.mcp_server import create_server
+from jev_ultrafast_computer_use.handoff import BrowseSessions
+from jev_ultrafast_computer_use.mcp_server import create_server
 from tests.test_handoff import agent_with_decisions, decision
 
 
 def test_mcp_exposes_bounded_browsing_and_takeover():
     agent = agent_with_decisions(decision("Open"), decision("BLOCKED"))
-    server = create_server(BrowseSessions(agent_factory=lambda *_: agent))
+    server = create_server(BrowseSessions(agent_factory=lambda *_: agent, release_tab=Mock()))
 
     async def exercise():
         async with Client(server) as client:

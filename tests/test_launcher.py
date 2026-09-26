@@ -1,26 +1,19 @@
-"""The shared plugin launcher loads the Jev key without writing it to MCP stdout."""
+"""The plugin launcher requires an explicitly supplied Jev key."""
 
-from subprocess import CompletedProcess
+import pytest
 
 from scripts import run_mcp
 
 
-def test_launcher_reads_interactive_zsh_key_without_forwarding_startup_output(monkeypatch, capsys):
+def test_launcher_accepts_process_environment_key(monkeypatch):
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    run_mcp.require_typesafe_key()
+
+
+def test_launcher_does_not_read_zshrc_when_key_is_missing(monkeypatch, tmp_path):
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
-    monkeypatch.delenv("TEXT_MODEL_API_KEY", raising=False)
-    monkeypatch.setattr(
-        run_mcp.subprocess,
-        "run",
-        lambda *_args, **_kwargs: CompletedProcess(
-            args=[],
-            returncode=0,
-            stdout="pyenv warning\n__JEV_KEY_BEGIN__\ntest-key\n__JEV_KEY_END__\n",
-            stderr="",
-        ),
-    )
+    monkeypatch.setenv("HOME", str(tmp_path))
+    (tmp_path / ".zshrc").write_text('export TYPESAFE_API_KEY="test-key"\n')
 
-    run_mcp.load_environment()
-
-    assert run_mcp.os.environ["TYPESAFE_API_KEY"] == "test-key"
-    assert "TEXT_MODEL_API_KEY" not in run_mcp.os.environ
-    assert capsys.readouterr().out == ""
+    with pytest.raises(RuntimeError, match="MCP process environment"):
+        run_mcp.require_typesafe_key()

@@ -6,9 +6,21 @@ from ipaddress import ip_address
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from .agent import Agent
-from .browser import StalePage
-from .model import field_context
+from browser_harness.helpers import cdp
+from jev_ultrafast.browser import StalePage
+from jev_ultrafast.model import field_context
+
+from jev_ultrafast import Agent
+
+
+def release_browser(browser) -> None:
+    """Activate and detach an owned Jev tab without closing it."""
+    if not browser.target:
+        return
+    cdp("Target.activateTarget", targetId=browser.target)
+    cdp("Target.detachFromTarget", sessionId=browser.session)
+    browser.target = None
+    browser.session = None
 
 
 def is_public_https_url(url: str) -> bool:
@@ -44,8 +56,9 @@ class BrowseRun:
 
 
 class BrowseSessions:
-    def __init__(self, agent_factory=Agent):
+    def __init__(self, agent_factory=Agent, release_tab=release_browser):
         self.agent_factory = agent_factory
+        self.release_tab = release_tab
         self.runs: dict[str, BrowseRun] = {}
 
     def start(self, url: str, goal: str) -> dict:
@@ -104,18 +117,19 @@ class BrowseSessions:
                 if decision["operation"] == "TYPE_TEXT" and not os.environ.get("TEXT_MODEL_API_KEY"):
                     action = next(a for a in agent.state["page"]["actions"] if a["id"] == decision["choice"])
                     context = field_context(agent.state["goal"], action, agent.state["page"], agent.state["history"])
-                    run.pending_context = context
-                    run.text_request = {
-                        "goal": context["goal"],
-                        "field_label": context["field"]["label"],
-                        "field_role": context["field"]["role"],
-                        "current_value": context["field"]["value"],
-                        "page_title": context["page"]["title"],
-                        "page_text": context["page"]["text"],
-                    }
-                    run.status = "needs_text"
-                    run.reason = "The supervisor must supply text for the selected field"
-                    return self.status(run_id)
+                    if not agent.pending_text or agent.pending_text[0] != context:
+                        run.pending_context = context
+                        run.text_request = {
+                            "goal": context["goal"],
+                            "field_label": context["field"]["label"],
+                            "field_role": context["field"]["role"],
+                            "current_value": context["field"]["value"],
+                            "page_title": context["page"]["title"],
+                            "page_text": context["page"]["text"],
+                        }
+                        run.status = "needs_text"
+                        run.reason = "The supervisor must supply text for the selected field"
+                        return self.status(run_id)
                 agent.command("act", {"fingerprint": agent.state["page"]["fingerprint"]})
             except StalePage:
                 # The current decision was consumed. Observe again before making any new decision.
@@ -172,7 +186,7 @@ class BrowseSessions:
 
     def _release(self, run_id: str, status: str, reason: str) -> dict:
         run = self.runs[run_id]
-        run.agent.browser.handoff(activate=True)
+        self.release_tab(run.agent.browser)
         run.status = status
         run.reason = reason
         return self.status(run_id)

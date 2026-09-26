@@ -3,8 +3,9 @@
 from unittest.mock import Mock
 
 import pytest
+from jev_ultrafast.browser import StalePage
 
-from jev_ultrafast.handoff import BrowseSessions
+from jev_ultrafast_computer_use.handoff import BrowseSessions, release_browser
 
 
 def agent_with_decisions(*decisions):
@@ -59,7 +60,8 @@ def decision(choice, confidence=0.95, target_confidence=None, operation=None):
 
 def test_advance_runs_a_bounded_batch_and_reports_progress():
     agent = agent_with_decisions(decision("Open"), decision("Next"), decision("DONE"))
-    sessions = BrowseSessions(agent_factory=lambda *_: agent)
+    release = Mock()
+    sessions = BrowseSessions(agent_factory=lambda *_: agent, release_tab=release)
     run_id = sessions.start("https://example.org/", "Find the article")["run_id"]
 
     first = sessions.advance(run_id, max_steps=2)
@@ -72,57 +74,61 @@ def test_advance_runs_a_bounded_batch_and_reports_progress():
     final = sessions.advance(run_id, max_steps=2)
     assert final["status"] == "needs_verification"
     assert final["steps"] == 2
-    agent.browser.handoff.assert_called_once_with(activate=True)
+    release.assert_called_once_with(agent.browser)
 
 
 def test_low_confidence_escalates_before_any_action():
     agent = agent_with_decisions(decision("Open", confidence=0.4))
-    sessions = BrowseSessions(agent_factory=lambda *_: agent)
+    release = Mock()
+    sessions = BrowseSessions(agent_factory=lambda *_: agent, release_tab=release)
     run_id = sessions.start("https://example.org/", "Find the article")["run_id"]
 
     result = sessions.advance(run_id, max_steps=3, min_confidence=0.6)
     assert result["status"] == "needs_gpt"
     assert "confidence" in result["reason"]
     assert result["steps"] == 0
-    agent.browser.handoff.assert_called_once_with(activate=True)
+    release.assert_called_once_with(agent.browser)
     assert agent.command.call_count == 1
 
 
 def test_blocked_escalates_and_keeps_tab_open():
     agent = agent_with_decisions(decision("BLOCKED"))
-    sessions = BrowseSessions(agent_factory=lambda *_: agent)
+    release = Mock()
+    sessions = BrowseSessions(agent_factory=lambda *_: agent, release_tab=release)
     run_id = sessions.start("https://example.org/", "Find the article")["run_id"]
 
     result = sessions.advance(run_id)
     assert result["status"] == "needs_gpt"
     assert result["url"] == "https://example.org/"
-    agent.browser.handoff.assert_called_once_with(activate=True)
+    release.assert_called_once_with(agent.browser)
     agent.close.assert_not_called()
 
 
 def test_supervisor_can_intervene_without_waiting_for_jev_to_stop():
     agent = agent_with_decisions(decision("Open"))
-    sessions = BrowseSessions(agent_factory=lambda *_: agent)
+    release = Mock()
+    sessions = BrowseSessions(agent_factory=lambda *_: agent, release_tab=release)
     run_id = sessions.start("https://example.org/", "Find the article")["run_id"]
 
     result = sessions.handoff(run_id)
     assert result["status"] == "needs_gpt"
     assert result["reason"] == "Supervisor requested takeover"
-    agent.browser.handoff.assert_called_once_with(activate=True)
+    release.assert_called_once_with(agent.browser)
 
 
 def test_codex_can_supply_field_text_and_jev_continues(monkeypatch):
     monkeypatch.delenv("TEXT_MODEL_API_KEY", raising=False)
     agent = agent_with_decisions(decision("Search", operation="TYPE_TEXT"), decision("DONE"))
     agent.state["decision"] = None
-    sessions = BrowseSessions(agent_factory=lambda *_: agent)
+    release = Mock()
+    sessions = BrowseSessions(agent_factory=lambda *_: agent, release_tab=release)
     run_id = sessions.start("https://example.org/", "Find the article")["run_id"]
 
     request = sessions.advance(run_id)
-    assert request["status"] == "needs_text"
+    assert request["status"] == "needs_text", request["reason"]
     assert request["text_request"]["field_label"] == "Search"
     assert request["steps"] == 0
-    agent.browser.handoff.assert_not_called()
+    release.assert_not_called()
 
     result = sessions.submit_text(run_id, "article name")
     assert result["status"] == "ready"
@@ -133,19 +139,90 @@ def test_codex_can_supply_field_text_and_jev_continues(monkeypatch):
 
 def test_browser_handoff_detaches_without_closing_tab(monkeypatch):
     from jev_ultrafast import browser
+    from jev_ultrafast_computer_use import handoff
 
     cdp = Mock()
-    monkeypatch.setattr(browser, "cdp", cdp)
+    monkeypatch.setattr(handoff, "cdp", cdp)
     tab = browser.Browser.__new__(browser.Browser)
     tab.target = "chrome-target-1"
     tab.session = "session-1"
 
-    tab.handoff(activate=True)
+    release_browser(tab)
 
     assert cdp.call_args_list[0].args == ("Target.activateTarget",)
     assert cdp.call_args_list[1].args == ("Target.detachFromTarget",)
     assert tab.target is None
     assert not any(call.args[0] == "Target.closeTarget" for call in cdp.call_args_list)
+
+
+def test_upstream_agent_uses_supervisor_text_without_text_model_key(monkeypatch):
+    import jev_ultrafast.agent as upstream
+
+    monkeypatch.delenv("TEXT_MODEL_API_KEY", raising=False)
+    page = {
+        "url": "https://example.org/",
+        "title": "Example",
+        "text": "Search for an article",
+        "fingerprint": "f1",
+        "actions": [{"id": "Search", "node": 1, "kind": "fill", "label": "Search", "role": "textbox", "value": ""}],
+    }
+    browser = Mock(target="chrome-target-1", session="session-1")
+    browser.observe.return_value = page
+    browser.fresh.return_value = True
+    monkeypatch.setattr(upstream, "Browser", lambda _url: browser)
+    monkeypatch.setattr(
+        upstream,
+        "choose",
+        lambda *_: {
+            "choice": "Search",
+            "operation": "TYPE_TEXT",
+            "confidence": 0.95,
+            "target_confidence": 0.95,
+            "probabilities": {"Search": 1.0},
+            "latency_ms": 0,
+            "target": "Search",
+            "usage": {},
+        },
+    )
+    text_model = Mock(side_effect=AssertionError("A text model call was made"))
+    monkeypatch.setattr(upstream, "field_text", text_model)
+
+    sessions = BrowseSessions(agent_factory=upstream.Agent, release_tab=Mock())
+    run_id = sessions.start("https://example.org/", "Search for a paper")["run_id"]
+    request = sessions.advance(run_id, max_steps=1)
+    assert request["status"] == "needs_text", request["reason"]
+    assert request["text_request"]["field_label"] == "Search"
+
+    result = sessions.submit_text(run_id, "paper title")
+    assert result["status"] == "ready"
+    browser.act.assert_called_once_with(page["actions"][0], page, text="paper title")
+    text_model.assert_not_called()
+
+
+def test_supervisor_text_survives_a_stale_page_retry(monkeypatch):
+    monkeypatch.delenv("TEXT_MODEL_API_KEY", raising=False)
+    agent = agent_with_decisions(decision("Search", operation="TYPE_TEXT"))
+    command = agent.command.side_effect
+    stale_once = True
+
+    def command_with_stale_retry(name, body=None):
+        nonlocal stale_once
+        if name == "act" and stale_once:
+            stale_once = False
+            raise StalePage("Page changed before input")
+        return command(name, body)
+
+    agent.command.side_effect = command_with_stale_retry
+    sessions = BrowseSessions(agent_factory=lambda *_: agent, release_tab=Mock())
+    run_id = sessions.start("https://example.org/", "Find the article")["run_id"]
+    assert sessions.advance(run_id, max_steps=1)["status"] == "needs_text"
+    first = sessions.submit_text(run_id, "article name")
+    assert first["status"] == "ready"
+    assert first["steps"] == 0
+
+    retried = sessions.advance(run_id, max_steps=1)
+    assert retried["status"] == "ready"
+    assert retried["steps"] == 1
 
 
 @pytest.mark.parametrize(
