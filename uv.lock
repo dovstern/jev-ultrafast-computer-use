@@ -369,7 +369,7 @@ wheels = [
 
 [[package]]
 name = "jev-ultrafast-computer-use"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "browser-harness" },
