@@ -72,6 +72,8 @@ codex plugin marketplace add dovstern/jev-ultrafast-computer-use
 
 Start a new Codex task after installation so it loads the skill and MCP tools. If you already registered `jev-browser` with `codex mcp add`, remove that older standalone registration after the plugin works to avoid two copies of the tools.
 
+On first use, the plugin installs its locked Python dependencies into its own local environment. Later starts use that environment directly.
+
 ### Claude Code
 
 ```bash
