@@ -54,7 +54,13 @@ cd jev-ultrafast-computer-use
 uv sync --locked
 ```
 
-Set `TYPESAFE_API_KEY` in your shell environment. Keep it out of the repository. When a desktop agent does not inherit it, the launcher can read a literal `export TYPESAFE_API_KEY="..."` assignment from `~/.zshrc` without running shell startup commands. `TEXT_MODEL_API_KEY` is optional here; leave it unset to let the supervisor answer `needs_text`. The optional upstream text model variables are shown in [.env.example](.env.example).
+Set `TYPESAFE_API_KEY` in the environment of the Codex or Claude process that starts the MCP server. Keep it out of the repository and plugin manifests. An export in `~/.zshrc` reaches interactive shells but may not reach apps opened from the Dock. On macOS, run the following from a shell where the key is already set, then fully quit and reopen the desktop app:
+
+```bash
+launchctl setenv TYPESAFE_API_KEY "$TYPESAFE_API_KEY"
+```
+
+This makes the key available to apps started in your login session. For a narrower scope, start a CLI client directly from a shell that has the key. The plugin does not read shell startup files. `TEXT_MODEL_API_KEY` is optional here; leave it unset to let the supervisor answer `needs_text`. The optional upstream text model variables are shown in [.env.example](.env.example).
 
 Enable Chrome Remote Debugging in `chrome://inspect/#remote-debugging`, then check the connection:
 

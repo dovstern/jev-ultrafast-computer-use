@@ -1,29 +1,19 @@
-"""The shared plugin launcher reads a literal Jev key without running shell startup."""
+"""The plugin launcher requires an explicitly supplied Jev key."""
+
+import pytest
 
 from scripts import run_mcp
 
 
-def test_launcher_reads_literal_zshrc_key_without_running_shell(monkeypatch, tmp_path, capsys):
+def test_launcher_accepts_process_environment_key(monkeypatch):
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    run_mcp.require_typesafe_key()
+
+
+def test_launcher_does_not_read_zshrc_when_key_is_missing(monkeypatch, tmp_path):
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
-    monkeypatch.delenv("TEXT_MODEL_API_KEY", raising=False)
-    zshrc = tmp_path / ".zshrc"
-    zshrc.write_text('echo should-not-run\nexport TYPESAFE_API_KEY="test-key"\n')
+    monkeypatch.setenv("HOME", str(tmp_path))
+    (tmp_path / ".zshrc").write_text('export TYPESAFE_API_KEY="test-key"\n')
 
-    run_mcp.load_environment(zshrc)
-
-    assert run_mcp.os.environ["TYPESAFE_API_KEY"] == "test-key"
-    assert "TEXT_MODEL_API_KEY" not in run_mcp.os.environ
-    assert capsys.readouterr().out == ""
-
-
-def test_launcher_rejects_dynamic_shell_expressions(monkeypatch, tmp_path):
-    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
-    zshrc = tmp_path / ".zshrc"
-    zshrc.write_text('export TYPESAFE_API_KEY="$(cat /tmp/secret)"\n')
-
-    try:
-        run_mcp.load_environment(zshrc)
-    except RuntimeError as error:
-        assert "TYPESAFE_API_KEY" in str(error)
-    else:
-        raise AssertionError("Dynamic shell expression was accepted")
+    with pytest.raises(RuntimeError, match="MCP process environment"):
+        run_mcp.require_typesafe_key()
