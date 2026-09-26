@@ -1,4 +1,4 @@
-# Jev Ultrafast
+# Jev Ultrafast Computer Use
 
 Read README.md before editing. Keep the loop small: page -> indexed elements -> operation + target -> execution.
 

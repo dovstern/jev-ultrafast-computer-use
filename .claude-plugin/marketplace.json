@@ -1,0 +1,12 @@
+{
+  "name": "jev-ultrafast-computer-use",
+  "description": "A local Jev browser delegation plugin for Claude Code.",
+  "owner": { "name": "Dov Stern" },
+  "plugins": [
+    {
+      "name": "jev-ultrafast-computer-use",
+      "source": { "source": "github", "repo": "dovstern/jev-ultrafast-computer-use" },
+      "description": "Delegate public Chrome browsing to Jev and take over when needed."
+    }
+  ]
+}
