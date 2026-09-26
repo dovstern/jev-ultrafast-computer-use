@@ -2,7 +2,7 @@
 
 Give a fast browser agent the routine page work while a reasoning agent stays in charge.
 
-This project builds on [Browser Use's jev-ultrafast](https://github.com/browser-use/jev-ultrafast). Its core loop turns a Chrome page into indexed controls, asks [TypeSafe's Jev](https://docs.typesafe.ai/introduction) to choose an action, and executes only a supported action on an observed control. This repository keeps that loop and adds a local MCP server so Codex or Claude can start a run, inspect progress, supply missing text, and take over the same tab. It is an independent extension, not an official Browser Use or TypeSafe release. The original MIT license and Browser Use copyright notice remain in [LICENSE](LICENSE).
+This project builds on [Browser Use's jev-ultrafast](https://github.com/browser-use/jev-ultrafast). Its core loop turns a Chrome page into indexed controls, asks [TypeSafe's Jev](https://docs.typesafe.ai/introduction) to choose an action, and executes only a supported action on an observed control. This repository installs that upstream Python package from Git and adds a separate local MCP bridge. Codex or Claude can start a run, inspect progress, supply missing text, and take over the same tab. It is an independent extension, not an official Browser Use or TypeSafe release. The original MIT license and Browser Use copyright notice remain in [LICENSE](LICENSE).
 
 ## Goal
 
@@ -36,6 +36,8 @@ The MCP server exposes six tools:
 
 `advance_browse` returns `ready`, `needs_text`, `needs_gpt`, or `needs_verification`. A low-confidence choice can trigger handoff through `min_confidence`. A blocked run or error also hands off. On handoff, Jev stops controlling the tab; the supervisor claims that tab with its own Chrome controls and checks the URL and title before continuing. Jev's `DONE` choice is never treated as proof that the task succeeded.
 
+Upstream Jev uses `TEXT_MODEL_API_KEY` for its optional text model when it selects `TYPE_TEXT`. This bridge does not require that key. Without it, `advance_browse` pauses **before** the upstream text-model call and returns `needs_text` with the selected field and page context. Codex or Claude writes the value and calls `submit_browse_text`; the bridge passes that exact value to upstream Jev for the pending action. Jev still uses `TYPESAFE_API_KEY` to choose browser actions. Setting `TEXT_MODEL_API_KEY` opts into upstream automatic text generation instead.
+
 One [shared skill](skills/jev-browser/SKILL.md) teaches this workflow to both Codex and Claude. The plugin includes the same Python MCP server for both clients. The client manifests differ only where their plugin formats require it.
 
 ## Current scope
@@ -52,7 +54,7 @@ cd jev-ultrafast-computer-use
 uv sync --locked
 ```
 
-Set `TYPESAFE_API_KEY` in your shell environment. Keep it out of the repository. When a desktop agent does not inherit it, the launcher can read a literal `export TYPESAFE_API_KEY="..."` assignment from `~/.zshrc` without running shell startup commands. For Jev's `TYPE_TEXT` operation, either let the supervisor answer `needs_text`, or configure the optional text model variables shown in [.env.example](.env.example).
+Set `TYPESAFE_API_KEY` in your shell environment. Keep it out of the repository. When a desktop agent does not inherit it, the launcher can read a literal `export TYPESAFE_API_KEY="..."` assignment from `~/.zshrc` without running shell startup commands. `TEXT_MODEL_API_KEY` is optional here; leave it unset to let the supervisor answer `needs_text`. The optional upstream text model variables are shown in [.env.example](.env.example).
 
 Enable Chrome Remote Debugging in `chrome://inspect/#remote-debugging`, then check the connection:
 
@@ -87,7 +89,11 @@ Ask either agent to browse a public site with Jev. The supervisor should use the
 
 ## Upstream project and evidence
 
-The action-selection loop, browser adapter, examples, demo assets, and [performance report](docs/performance.md) come from [browser-use/jev-ultrafast](https://github.com/browser-use/jev-ultrafast). Its reported speed measurements concern those upstream tasks. They are not a benchmark of this MCP handoff or of other websites.
+The action-selection loop and browser adapter are installed from [browser-use/jev-ultrafast](https://github.com/browser-use/jev-ultrafast). This repository contains only the MCP bridge and plugin files. `uv.lock` records the exact upstream Git commit, so `uv sync --locked` installs the same Jev code on each machine. A weekly workflow checks upstream `main`, runs the bridge tests, and proposes a lockfile update PR when its commit changes. Owner approval is still required before the update reaches `main`.
+
+The scheduled PR step needs GitHub's **Allow GitHub Actions to create and approve pull requests** repository setting. The workflow only creates or updates a PR; it does not approve one. Without that setting, run `uv lock --upgrade-package jev-ultrafast`, test the change, and open a PR manually.
+
+Upstream's [performance report](https://github.com/browser-use/jev-ultrafast/blob/main/docs/performance.md) concerns its own tasks. It is not a benchmark of this MCP handoff or of other websites.
 
 ## Next steps
 
@@ -100,8 +106,6 @@ Issues and pull requests are welcome. Keep changes general rather than adding si
 ```bash
 uv run ruff check .
 uv run pytest
-node --check jev_ultrafast/static/app.js
-node --check jev_ultrafast/snapshot.js
 uv build
 ```
 

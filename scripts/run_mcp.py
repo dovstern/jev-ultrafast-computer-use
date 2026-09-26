@@ -37,7 +37,7 @@ def load_environment(zshrc: Path | None = None) -> None:
 
 def main() -> None:
     load_environment()
-    from jev_ultrafast.mcp_server import main as serve
+    from jev_ultrafast_computer_use.mcp_server import main as serve
 
     serve()
 
