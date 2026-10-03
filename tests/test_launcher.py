@@ -34,7 +34,8 @@ def _plugin_with_stub_venv(tmp_path, venv_imports_ok):
     launcher.chmod(0o755)
     venv_python = root / ".venv/bin/python"
     venv_python.write_text(
-        f'#!/bin/sh\n[ "$1" = -c ] && {{ echo banner; exit {0 if venv_imports_ok else 1}; }}\necho venv-python ${{TYPESAFE_API_KEY:-}} ${{TEXT_MODEL:-}}\n'
+        f'#!/bin/sh\n[ "$1" = -c ] && {{ echo banner; exit {0 if venv_imports_ok else 1}; }}\n'
+        "echo venv-python ${TYPESAFE_API_KEY:-} ${TEXT_MODEL:-}\n"
     )
     venv_python.chmod(0o755)
     uv = tmp_path / "bin/uv"
