@@ -1,6 +1,6 @@
 [project]
 name = "jev-ultrafast-computer-use"
-version = "0.2.1"
+version = "0.3.0"
 description = "Supervised Jev browser use for Codex and Claude."
 readme = "README.md"
 license = "MIT"

@@ -23,7 +23,7 @@ flowchart LR
     S --> V[Independent result check]
 ```
 
-The MCP server exposes six tools:
+The MCP server exposes seven tools:
 
 | Tool | Purpose |
 | --- | --- |
@@ -31,10 +31,15 @@ The MCP server exposes six tools:
 | `advance_browse` | Run a bounded number of actions and return progress. |
 | `browse_status` | Read the current page and recent actions without acting. |
 | `submit_browse_text` | Supply text when Jev selects a field and the supervisor has the value. |
+| `guide_browse` | Choose an observed action during a guidance pause, then return control to Jev. |
 | `handoff_browse` | Stop Jev and release its Chrome tab to the supervisor. |
 | `close_browse` | Close a tab still owned by Jev. |
 
-`advance_browse` returns `ready`, `needs_text`, `needs_gpt`, or `needs_verification`. A low-confidence choice can trigger handoff through `min_confidence`. A blocked run or error also hands off. On handoff, Jev stops controlling the tab; the supervisor claims that tab with its own Chrome controls and checks the URL and title before continuing. Jev's `DONE` choice is never treated as proof that the task succeeded.
+`advance_browse` returns `ready`, `needs_text`, `needs_guidance`, `needs_gpt`, or `needs_verification`. Ordinary calls omit `min_confidence`: Jev runs with no confidence-based pause. Use an explicit override only when debugging or when the human asks for a particular threshold. A low-confidence override can return `needs_guidance` when `allow_guidance=True`; the supervisor then calls `guide_browse` with a supported operation and current observed control index. Without guidance, it hands off. For `TYPE_TEXT`, supply the value through `needs_text`.
+
+Start a run with `sensitive=True` when it may reach a sensitive decision. The mode stays active for the whole run and applies a **0.2 confidence minimum** to both the operation and selected target. A higher explicit override is allowed; a lower one cannot reduce that minimum. The mode also adds instructions to every Jev decision: continue authorized navigation and inspection, but choose `BLOCKED` before entering or submitting personal/payment information, buying or committing money, changing accounts or permissions, publishing/uploading, deleting, or accepting consequential terms. On handoff, the slower reasoning supervisor reviews the step and surfaces any required human approval. The mode does not authorize those actions. Its instruction is a model policy, not a guarantee that a sensitive action cannot execute.
+
+Status includes `sensitive`, indexed controls, supported operations, and selected field values. Controls that had no effect are excluded until the page changes. The browser wrapper exposes visible labels for styled native radio buttons and checkboxes and checks the linked input before clicking. It excludes covered controls and briefly retries observations while the page changes. These retries never repeat input. An invalid TypeSafe decision response gets one fresh prediction attempt before handoff; validation stays enabled. A blocked run or error also hands off. The supervisor claims the activated tab, checks its URL and title, and continues or verifies independently. Jev's `DONE` choice is never treated as proof that the task succeeded.
 
 Upstream Jev uses `TEXT_MODEL_API_KEY` for its optional text model when it selects `TYPE_TEXT`. This bridge does not require that key. Without it, `advance_browse` pauses **before** the upstream text-model call and returns `needs_text` with the selected field and page context. Codex or Claude writes the value and calls `submit_browse_text`; the bridge passes that exact value to upstream Jev for the pending action. Jev still uses `TYPESAFE_API_KEY` to choose browser actions. Setting `TEXT_MODEL_API_KEY` opts into upstream automatic text generation instead.
 
@@ -99,7 +104,7 @@ Ask either agent to browse a public site or an authorized signed-in account page
 
 ## Upstream project and evidence
 
-The action-selection loop and browser adapter are installed from [browser-use/jev-ultrafast](https://github.com/browser-use/jev-ultrafast). This repository contains only the MCP bridge and plugin files. `uv.lock` records the exact upstream Git commit, so `uv sync --locked` installs the same Jev code on each machine. A weekly workflow checks upstream `main`, runs the bridge tests, and proposes a lockfile update PR when its commit changes. Owner approval is still required before the update reaches `main`.
+The action-selection loop and core browser adapter are installed from [browser-use/jev-ultrafast](https://github.com/browser-use/jev-ultrafast). This repository contains the MCP bridge, a wrapper for observing browser controls, and the plugin files. `uv.lock` records the exact upstream Git commit, so `uv sync --locked` installs the same Jev code on each machine. A weekly workflow checks upstream `main`, runs the bridge tests, and proposes a lockfile update PR when its commit changes. Owner approval is still required before the update reaches `main`.
 
 The scheduled PR step needs GitHub's **Allow GitHub Actions to create and approve pull requests** repository setting. The workflow only creates or updates a PR; it does not approve one. Without that setting, run `uv lock --upgrade-package jev-ultrafast`, test the change, and open a PR manually.
 
@@ -117,6 +122,18 @@ Issues and pull requests are welcome. Keep changes general rather than adding si
 uv run ruff check .
 uv run pytest
 uv build
+```
+
+The native-label integration checks require local Chrome with Browser Harness connected. Run them separately:
+
+```bash
+uv run pytest live_tests -q
+```
+
+Paid model/browser E2E checks use harmless synthetic pages in disposable Chrome tabs. They require `TYPESAFE_API_KEY` and never submit a real purchase or personal details. Run them explicitly, outside the default offline suite:
+
+```bash
+uv run pytest live_model_tests -q
 ```
 
 Changes to `main` require a pull request and approval from the repository owner, `@dovstern`. Keep the Browser Use copyright and MIT notice when reusing the upstream code.
