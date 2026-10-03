@@ -39,7 +39,7 @@ def _plugin_with_stub_venv(tmp_path, venv_imports_ok):
     )
     venv_python.chmod(0o755)
     uv = tmp_path / "bin/uv"
-    uv.write_text("#!/bin/sh\necho uv-run\n")
+    uv.write_text('#!/bin/sh\nprintf "uv-run %s\\n" "$UV_CACHE_DIR"\n')
     uv.chmod(0o755)
     return launcher
 
@@ -54,7 +54,16 @@ def test_launcher_uses_venv_when_its_packages_import(tmp_path):
 
 
 def test_launcher_repairs_venv_left_empty_by_an_interrupted_first_sync(tmp_path):
-    assert _launch(_plugin_with_stub_venv(tmp_path, venv_imports_ok=False), tmp_path) == "uv-run"
+    launcher = _plugin_with_stub_venv(tmp_path, venv_imports_ok=False)
+
+    assert _launch(launcher, tmp_path) == f"uv-run {tmp_path / 'home/.cache/jev-ultrafast-computer-use/uv'}"
+
+
+def test_launcher_uses_plugin_data_for_its_runtime_cache(tmp_path):
+    launcher = _plugin_with_stub_venv(tmp_path, venv_imports_ok=False)
+    plugin_data = tmp_path / "plugin-data"
+
+    assert _launch(launcher, tmp_path, PLUGIN_DATA=str(plugin_data)) == f"uv-run {plugin_data / 'uv'}"
 
 
 def _write_key_file(tmp_path, text):

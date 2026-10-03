@@ -1,6 +1,6 @@
 {
   "name": "jev-ultrafast-computer-use",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Supervised Jev browsing in a local Chrome tab.",
   "author": {
     "name": "Dov Stern"
