@@ -27,7 +27,7 @@ The MCP server exposes six tools:
 
 | Tool | Purpose |
 | --- | --- |
-| `start_browse` | Open a public HTTPS page and start a Jev run. |
+| `start_browse` | Open a public or authorized signed-in HTTPS page and start a Jev run. |
 | `advance_browse` | Run a bounded number of actions and return progress. |
 | `browse_status` | Read the current page and recent actions without acting. |
 | `submit_browse_text` | Supply text when Jev selects a field and the supervisor has the value. |
@@ -42,7 +42,9 @@ One [shared skill](skills/jev-browser/SKILL.md) teaches this workflow to both Co
 
 ## Current scope
 
-This first version is for public, read-only browsing in local Chrome. It accepts public HTTPS starting URLs. It does not automate private account pages, purchases, uploads, or native desktop apps. Jev sends visible page text to TypeSafe. The optional text helper receives field context if configured. See [TODOS.md](TODOS.md) for native app computer use and other planned work.
+The plugin supports authorized read-only browsing of public and signed-in private account pages in local Chrome. It uses the connected Chrome profile and its existing sessions. Jev sends visible page text, including account content, to TypeSafe. The optional text helper receives field context if configured. The user must authorize account access and that data sharing. Purchases, account changes, uploads, and native desktop apps remain outside this workflow.
+
+The URL check requires HTTPS and a dotted hostname. It rejects literal IP addresses, hostnames ending in `.local`, `.internal`, or `.test`, and credentials embedded in URLs. It does not check whether a page is signed in or enforce read-only actions; the supervisor controls the task scope. See [TODOS.md](TODOS.md) for native app computer use and other planned work.
 
 ## Set up
 
@@ -93,7 +95,7 @@ claude plugin install jev-ultrafast-computer-use@jev-ultrafast-computer-use
 
 Start a new Claude Code session. You can also load this checkout for development with `claude --plugin-dir .`.
 
-Ask either agent to browse a public site with Jev. The supervisor should use the MCP tools, check progress, and verify the final page. When Jev cannot finish, the agent can continue in the tab Jev left open.
+Ask either agent to browse a public site or an authorized signed-in account page with Jev. The supervisor should use the MCP tools, check progress, and verify the final page. When Jev cannot finish, the agent can continue in the tab Jev left open.
 
 ## Upstream project and evidence
 
