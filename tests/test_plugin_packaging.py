@@ -20,6 +20,7 @@ def test_claude_and_codex_plugin_configs_share_one_skill_and_server():
     claude_mcp = read_json(".mcp.json")["mcpServers"]
 
     assert portable["name"] == codex["name"] == claude["name"] == "jev-ultrafast-computer-use"
+    assert portable["version"] == codex["version"] == claude["version"] == "0.3.1"
     assert [path.name for path in (ROOT / "skills").iterdir()] == ["jev-browser"]
     assert (ROOT / "skills/jev-browser/SKILL.md").is_file()
     assert codex_mcp.keys() == claude_mcp.keys() == {"jev-browser"}

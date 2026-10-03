@@ -17,5 +17,6 @@ python="$plugin_root/.venv/bin/python"
 if [ -x "$python" ] && "$python" -c "import jev_ultrafast_computer_use.mcp_server" >/dev/null 2>&1; then
   exec "$python" "$plugin_root/scripts/run_mcp.py"
 fi
-export UV_CACHE_DIR="$plugin_root/.uv-cache"
+runtime_root="${PLUGIN_DATA:-${XDG_CACHE_HOME:-$HOME/.cache}/jev-ultrafast-computer-use}"
+export UV_CACHE_DIR="$runtime_root/uv"
 exec uv run --project "$plugin_root" --locked python "$plugin_root/scripts/run_mcp.py"
