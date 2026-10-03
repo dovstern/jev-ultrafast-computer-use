@@ -54,13 +54,15 @@ cd jev-ultrafast-computer-use
 uv sync --locked
 ```
 
-Set `TYPESAFE_API_KEY` in the environment of the Codex or Claude process that starts the MCP server. Keep it out of the repository and plugin manifests. An export in `~/.zshrc` reaches interactive shells but may not reach apps opened from the Dock. On macOS, run the following from a shell where the key is already set, then fully quit and reopen the desktop app:
+Save your key with the setup script. It prompts with hidden input (or uses `TYPESAFE_API_KEY` if you already export it) and writes `~/.config/jev/env` with private permissions, outside this repository:
 
 ```bash
-launchctl setenv TYPESAFE_API_KEY "$TYPESAFE_API_KEY"
+./scripts/setup_key.sh
 ```
 
-This makes the key available to apps started in your login session. For a narrower scope, start a CLI client directly from a shell that has the key. The plugin does not read shell startup files. `TEXT_MODEL_API_KEY` is optional here; leave it unset to let the supervisor answer `needs_text`. The optional upstream text model variables are shown in [.env.example](.env.example).
+For an installed plugin, the script is in the plugin directory; if the key is missing, the `start_browse` error prints its exact path.
+
+Codex and Dock-launched apps do not pass shell exports to MCP servers, so the launcher reads this file when the variable is not set. The plugin does not read shell startup files. `TEXT_MODEL_API_KEY` is optional here; leave it unset to let the supervisor answer `needs_text`. The same file can hold the optional text model variables shown in [.env.example](.env.example).
 
 Enable Chrome Remote Debugging in `chrome://inspect/#remote-debugging`, then check the connection:
 
@@ -80,7 +82,7 @@ codex plugin marketplace add dovstern/jev-ultrafast-computer-use
 
 Start a new Codex task after installation so it loads the skill and MCP tools. If you already registered `jev-browser` with `codex mcp add`, remove that older standalone registration after the plugin works to avoid two copies of the tools.
 
-On first use, the plugin installs its locked Python dependencies into its own local environment. Later starts use that environment directly.
+On first use, the plugin installs its locked Python dependencies into its own local environment. If a host stops that first start early, the next start finishes the install. Later starts use that environment directly.
 
 ### Claude Code
 
