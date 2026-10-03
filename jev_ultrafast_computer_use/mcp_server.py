@@ -43,9 +43,12 @@ def create_server(sessions: BrowseSessions | None = None) -> MCPServer:
     server = MCPServer(
         "jev-browser",
         instructions=(
-            "Use these tools for public, read-only browsing. Jev sends visible page text to TypeSafe and may send "
-            "field context to the configured text model. Call advance_browse in bounded batches and inspect each "
-            "result. On needs_text, supply the exact field value with submit_browse_text, then advance again. "
+            "Use these tools for authorized read-only browsing on public and signed-in private account pages. "
+            "Use existing Chrome sessions; do not hand off merely because a page is signed in. "
+            "Jev sends visible page text, including account content, to TypeSafe and may send field context to the "
+            "configured text model. The user must authorize access and that data sharing. Use the host agent for "
+            "purchases, account changes, uploads, or native apps. Call advance_browse in bounded batches and inspect "
+            "each result. On needs_text, supply the exact field value with submit_browse_text, then advance again. "
             "On needs_gpt or needs_verification, claim the activated Chrome tab with your browser controls. "
             "Match its URL and title to the returned status before acting; do not open a duplicate tab. "
             "Then continue or verify independently. Never treat Jev's DONE as verified success."
@@ -54,7 +57,7 @@ def create_server(sessions: BrowseSessions | None = None) -> MCPServer:
 
     @server.tool(structured_output=True)
     def start_browse(url: str, goal: str) -> BrowseStatus:
-        """Open a public web page in a new Chrome tab and start a Jev browsing run."""
+        """Open a public or authorized signed-in HTTPS page in a new Chrome tab and start a Jev browsing run."""
         return BrowseStatus.model_validate(sessions.start(url, goal))
 
     @server.tool(structured_output=True)

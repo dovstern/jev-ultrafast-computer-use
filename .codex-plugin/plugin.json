@@ -1,16 +1,16 @@
 {
   "name": "jev-ultrafast-computer-use",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Supervised Jev browsing in a local Chrome tab.",
   "author": { "name": "Dov Stern" },
   "interface": {
     "displayName": "Jev Ultrafast Computer Use",
     "shortDescription": "Fast browsing with agent supervision",
-    "longDescription": "Delegate public Chrome navigation to Jev while Codex monitors progress, takes over when needed, and checks the result.",
+    "longDescription": "Delegate authorized Chrome navigation on public and signed-in pages to Jev while Codex monitors progress, takes over when needed, and checks the result.",
     "developerName": "Dov Stern",
     "category": "Productivity",
     "capabilities": ["Read", "Interactive"],
-    "defaultPrompt": ["Browse a public website with Jev and verify the result."]
+    "defaultPrompt": ["Browse a website with Jev and verify the result."]
   },
   "skills": "./skills/"
 }

@@ -6,7 +6,7 @@
     {
       "name": "jev-ultrafast-computer-use",
       "source": { "source": "github", "repo": "dovstern/jev-ultrafast-computer-use" },
-      "description": "Delegate public Chrome browsing to Jev and take over when needed."
+      "description": "Delegate authorized Chrome browsing on public and signed-in pages to Jev and take over when needed."
     }
   ]
 }
