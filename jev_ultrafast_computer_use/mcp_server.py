@@ -69,7 +69,7 @@ def create_server(sessions: BrowseSessions | None = None) -> MCPServer:
             "supervisor decides the next step and surfaces any required human approval. Sensitive mode does not "
             "authorize writes and is not an enforcement guarantee. On needs_guidance, use "
             "guide_browse with a supported operation and current control index, then advance again. "
-            "On needs_gpt or needs_verification, claim the activated Chrome tab with your browser controls. "
+            "On needs_reasoning_llm or needs_verification, claim the activated Chrome tab with your browser controls. "
             "Match its URL and title to the returned status before acting; do not open a duplicate tab. "
             "Then continue or verify independently. Never treat Jev's DONE as verified success."
         ),

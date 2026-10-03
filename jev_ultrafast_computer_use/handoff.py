@@ -123,7 +123,7 @@ class BrowseSessions:
         run.reason = None
         for _ in range(max_steps):
             if not is_public_https_url(agent.state["page"]["url"]):
-                return self._release(run_id, "needs_gpt", "Page left public HTTPS; no content sent to Jev")
+                return self._release(run_id, "needs_reasoning_llm", "Page left public HTTPS; no content sent to Jev")
             try:
                 self._predict(run)
                 decision = agent.state["decision"]
@@ -138,7 +138,7 @@ class BrowseSessions:
                     return self.status(run_id)
                 if confidence < min_confidence:
                     return self._release(
-                        run_id, "needs_gpt", f"Jev confidence {confidence:.2f} below {min_confidence:.2f}"
+                        run_id, "needs_reasoning_llm", f"Jev confidence {confidence:.2f} below {min_confidence:.2f}"
                     )
                 if self._request_text(run, decision):
                     return self.status(run_id)
@@ -150,14 +150,14 @@ class BrowseSessions:
                 try:
                     agent.state["page"] = agent.browser.observe(screenshot=agent.screenshots)
                 except Exception as error:
-                    return self._release(run_id, "needs_gpt", f"Browser observation failed: {error}")
+                    return self._release(run_id, "needs_reasoning_llm", f"Browser observation failed: {error}")
                 continue
             except Exception as error:
-                return self._release(run_id, "needs_gpt", f"Jev stopped: {error}")
+                return self._release(run_id, "needs_reasoning_llm", f"Jev stopped: {error}")
             if agent.state["status"] == "done":
                 return self._release(run_id, "needs_verification", "Jev reported DONE; verify the page outcome")
             if agent.state["status"] == "blocked":
-                return self._release(run_id, "needs_gpt", "Jev reported BLOCKED or made no progress")
+                return self._release(run_id, "needs_reasoning_llm", "Jev reported BLOCKED or made no progress")
         return self.status(run_id)
 
     def _prediction_page(self, run: BrowseRun, page: dict) -> dict:
@@ -206,7 +206,7 @@ class BrowseSessions:
         try:
             agent.state["page"] = agent.browser.observe(screenshot=agent.screenshots)
         except Exception as error:
-            return self._release(run_id, "needs_gpt", f"Browser observation failed: {error}")
+            return self._release(run_id, "needs_reasoning_llm", f"Browser observation failed: {error}")
         run.status = "ready"
         run.reason = (
             f"{subject} was applied; the page changed during observation and has been refreshed"
@@ -267,7 +267,7 @@ class BrowseSessions:
         except StalePage:
             return self._recover_stale(run_id, steps_before, "Guidance")
         except Exception as error:
-            return self._release(run_id, "needs_gpt", f"Guidance freshness check failed: {error}")
+            return self._release(run_id, "needs_reasoning_llm", f"Guidance freshness check failed: {error}")
         if not fresh:
             return self._recover_stale(run_id, steps_before, "Guidance")
         decision = {
@@ -291,9 +291,9 @@ class BrowseSessions:
         except StalePage:
             return self._recover_stale(run_id, steps_before, "Guidance")
         except Exception as error:
-            return self._release(run_id, "needs_gpt", f"Guided action failed: {error}")
+            return self._release(run_id, "needs_reasoning_llm", f"Guided action failed: {error}")
         if agent.state["status"] == "blocked":
-            return self._release(run_id, "needs_gpt", "Guided action made no progress")
+            return self._release(run_id, "needs_reasoning_llm", "Guided action made no progress")
         return self.status(run_id)
 
     def submit_text(self, run_id: str, value: str) -> dict:
@@ -314,13 +314,13 @@ class BrowseSessions:
         except StalePage:
             return self._recover_stale(run_id, steps_before, "Field text")
         except Exception as error:
-            return self._release(run_id, "needs_gpt", f"Text input failed: {error}")
+            return self._release(run_id, "needs_reasoning_llm", f"Text input failed: {error}")
         return self.status(run_id)
 
     def handoff(self, run_id: str) -> dict:
         run = self.runs[run_id]
         if run.status in {"ready", "needs_text", "needs_guidance"}:
-            return self._release(run_id, "needs_gpt", "Supervisor requested takeover")
+            return self._release(run_id, "needs_reasoning_llm", "Supervisor requested takeover")
         return self.status(run_id)
 
     def close(self, run_id: str) -> dict:

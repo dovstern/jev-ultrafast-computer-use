@@ -84,7 +84,7 @@ def test_low_confidence_escalates_before_any_action():
     run_id = sessions.start("https://example.org/", "Find the article")["run_id"]
 
     result = sessions.advance(run_id, max_steps=3, min_confidence=0.6)
-    assert result["status"] == "needs_gpt"
+    assert result["status"] == "needs_reasoning_llm"
     assert "confidence" in result["reason"]
     assert result["steps"] == 0
     release.assert_called_once_with(agent.browser)
@@ -98,7 +98,7 @@ def test_blocked_escalates_and_keeps_tab_open():
     run_id = sessions.start("https://example.org/", "Find the article")["run_id"]
 
     result = sessions.advance(run_id)
-    assert result["status"] == "needs_gpt"
+    assert result["status"] == "needs_reasoning_llm"
     assert result["url"] == "https://example.org/"
     release.assert_called_once_with(agent.browser)
     agent.close.assert_not_called()
@@ -111,7 +111,7 @@ def test_supervisor_can_intervene_without_waiting_for_jev_to_stop():
     run_id = sessions.start("https://example.org/", "Find the article")["run_id"]
 
     result = sessions.handoff(run_id)
-    assert result["status"] == "needs_gpt"
+    assert result["status"] == "needs_reasoning_llm"
     assert result["reason"] == "Supervisor requested takeover"
     release.assert_called_once_with(agent.browser)
 
@@ -385,7 +385,7 @@ def test_guidance_releases_tab_when_refresh_fails():
     agent.browser.fresh.return_value = False
     agent.browser.observe.side_effect = RuntimeError("Tab unavailable")
     result = sessions.guide(run_id, operation="TYPE_TEXT", target="1")
-    assert result["status"] == "needs_gpt"
+    assert result["status"] == "needs_reasoning_llm"
     assert "observation failed" in result["reason"]
     release.assert_called_once_with(agent.browser)
 
@@ -477,7 +477,7 @@ def test_prediction_refresh_rejects_private_url_before_model_call(monkeypatch):
     result = sessions.advance(run_id, max_steps=1)
     model.assert_not_called()
     browser.act.assert_not_called()
-    assert result["status"] == "needs_gpt"
+    assert result["status"] == "needs_reasoning_llm"
     assert "public HTTPS" in result["reason"]
     release.assert_called_once_with(browser)
     assert browser.observe is original_observe
@@ -508,7 +508,7 @@ def test_persistent_invalid_predictions_release_after_two_attempts(monkeypatch):
     sessions, run_id, browser, _, model, release = prediction_session(monkeypatch)
     model.side_effect = ValueError("Invalid TypeSafe response; no action executed.")
     result = sessions.advance(run_id, max_steps=1)
-    assert result["status"] == "needs_gpt"
+    assert result["status"] == "needs_reasoning_llm"
     assert "Invalid TypeSafe response" in result["reason"]
     assert model.call_count == 2
     browser.act.assert_not_called()
@@ -519,7 +519,7 @@ def test_unrelated_prediction_errors_are_not_retried(monkeypatch):
     sessions, run_id, browser, _, model, release = prediction_session(monkeypatch)
     model.side_effect = ValueError("Unexpected prediction failure")
     result = sessions.advance(run_id, max_steps=1)
-    assert result["status"] == "needs_gpt"
+    assert result["status"] == "needs_reasoning_llm"
     assert model.call_count == 1
     browser.act.assert_not_called()
     release.assert_called_once_with(browser)
@@ -534,7 +534,7 @@ def test_invalid_prediction_retry_checks_new_url_before_sending_content(monkeypa
 
     model.side_effect = predict
     result = sessions.advance(run_id, max_steps=1)
-    assert result["status"] == "needs_gpt"
+    assert result["status"] == "needs_reasoning_llm"
     assert "public HTTPS" in result["reason"]
     assert model.call_count == 1
     browser.act.assert_not_called()
@@ -545,7 +545,7 @@ def test_act_errors_are_never_retried_even_if_the_message_matches(monkeypatch):
     sessions, run_id, browser, _, model, release = prediction_session(monkeypatch)
     browser.act.side_effect = ValueError("Invalid TypeSafe response; no action executed.")
     result = sessions.advance(run_id, max_steps=1)
-    assert result["status"] == "needs_gpt"
+    assert result["status"] == "needs_reasoning_llm"
     assert model.call_count == 1
     browser.act.assert_called_once()
     release.assert_called_once_with(browser)
@@ -555,11 +555,11 @@ def test_act_errors_are_never_retried_even_if_the_message_matches(monkeypatch):
     "sensitive,confidence,target_confidence,override,expected",
     [
         (False, 0.1, None, None, "ready"),
-        (True, 0.19, None, None, "needs_gpt"),
+        (True, 0.19, None, None, "needs_reasoning_llm"),
         (True, 0.2, 0.2, None, "ready"),
-        (True, 0.9, 0.19, None, "needs_gpt"),
-        (True, 0.19, None, 0.0, "needs_gpt"),
-        (True, 0.3, None, 0.4, "needs_gpt"),
+        (True, 0.9, 0.19, None, "needs_reasoning_llm"),
+        (True, 0.19, None, 0.0, "needs_reasoning_llm"),
+        (True, 0.3, None, 0.4, "needs_reasoning_llm"),
     ],
 )
 def test_mode_sets_confidence_without_an_ordinary_override(
@@ -589,7 +589,7 @@ def test_sensitive_policy_is_added_once_and_mode_persists():
     assert "personal" in effective_goal
     assert "human approval" in effective_goal
     assert sessions.advance(started["run_id"], max_steps=1)["status"] == "ready"
-    assert sessions.advance(started["run_id"], max_steps=1)["status"] == "needs_gpt"
+    assert sessions.advance(started["run_id"], max_steps=1)["status"] == "needs_reasoning_llm"
     release.assert_called_once_with(agent.browser)
     factory.assert_called_once()
 

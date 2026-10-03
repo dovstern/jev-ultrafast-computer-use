@@ -69,7 +69,7 @@ def test_real_mcp_and_jev_respect_sensitive_boundary(sensitive, goal, content):
             )
             assert not result.is_error
             status = result.structured_content
-            assert status["status"] == ("needs_gpt" if sensitive else "needs_verification"), status
+            assert status["status"] == ("needs_reasoning_llm" if sensitive else "needs_verification"), status
             assert status["sensitive"] is sensitive
             assert released == [target]
             assert agent.state["decisions"][-1]["operation"] == ("BLOCKED" if sensitive else "DONE")

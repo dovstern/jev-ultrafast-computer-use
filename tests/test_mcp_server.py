@@ -35,7 +35,7 @@ def test_mcp_exposes_bounded_browsing_and_takeover():
             assert progress.structured_content["status"] == "ready"
             assert progress.structured_content["steps"] == 1
             takeover = await client.call_tool("advance_browse", {"run_id": run_id})
-            assert takeover.structured_content["status"] == "needs_gpt"
+            assert takeover.structured_content["status"] == "needs_reasoning_llm"
             assert takeover.structured_content["url"] == "https://example.org/"
 
     asyncio.run(exercise())
@@ -164,7 +164,7 @@ def test_mcp_mode_reaches_upstream_requests_and_blocked_hands_off(monkeypatch, s
             )
             assert started.structured_content["sensitive"] is sensitive
             result = await client.call_tool("advance_browse", {"run_id": started.structured_content["run_id"]})
-            assert result.structured_content["status"] == ("needs_gpt" if sensitive else "needs_verification")
+            assert result.structured_content["status"] == ("needs_reasoning_llm" if sensitive else "needs_verification")
             assert result.structured_content["steps"] == 1
             release.assert_called_once_with(browser)
 
